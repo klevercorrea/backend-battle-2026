@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+
+# pre-commit hook to enforce code formatting rules.
+# Aligns with project workflow: zig fmt .
+
+set -euo pipefail
+
+# 1. Check Zig formatting
+if command -v zig > /dev/null; then
+    # Only check if there are staged .zig files
+    STAGED_ZIG=$(git diff --cached --name-only --diff-filter=ACMR | grep '\.zig$' || true)
+    if [ -n "$STAGED_ZIG" ]; then
+        echo "🔍 Checking Zig formatting..."
+        if ! zig fmt --check . ; then
+            echo "❌ ERROR: Some staged Zig files are not formatted."
+            echo "Please run 'zig fmt .' and restage your changes."
+            exit 1
+        fi
+    fi
+fi
+
+# 2. Fortran formatting reminder
+STAGED_FORTRAN=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.f90$|\.f95$|\.f$' || true)
+if [ -n "$STAGED_FORTRAN" ]; then
+    echo "⚠️  Reminder: Ensure staged Fortran files are formatted with 'fprettify -r .'"
+fi
+
+exit 0
