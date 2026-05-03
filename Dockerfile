@@ -10,14 +10,14 @@ RUN addgroup -g 10001 appgroup && \
 
 WORKDIR /app
 
-# Ordering this before the full COPY . maximizes layer caching for the source code.
+# Ordering this before the full COPY src/ maximizes layer caching for the source code.
 COPY build.zig build.zig.zon ./
-COPY src/ ./src/
 
 # We build with ReleaseFast to prioritize runtime speed.
 # Target x86_64-linux-musl to create a fully statically linked binary for the 'scratch' image. 
 # Optimize for x86_64_v3 to leverage modern CPU features like AVX2.
 # BuildKit cache mounts are used to accelerate subsequent builds.
+COPY src/ ./src/
 RUN --mount=type=cache,target=/root/.cache/zig \
     --mount=type=cache,target=/app/.zig-cache \
     zig build -Doptimize=ReleaseFast -Dtarget=x86_64-linux-musl -Dcpu=x86_64_v3 --summary all
@@ -36,17 +36,11 @@ LABEL org.opencontainers.image.source="https://github.com/klevercorrea/rinha-de-
 
 WORKDIR /app
 
-# This allows the container runtime to resolve the UID 10001 to 'appuser'.
+# This allows the container runtime to resolve the UID 10001 to 'appuser' (kept for metadata).
 COPY --from=builder /etc/passwd /etc/passwd
 COPY --from=builder /etc/group /etc/group
 
 COPY --from=builder /app/zig-out/bin/rinha /app/rinha
-
-# Even though scratch doesn't have a 'chown' command, Docker's COPY --chown works.
-COPY --chown=10001:10001 resources/ /app/resources/
-COPY --chown=10001:10001 data/ /app/data/
-
-USER 10001:10001
 
 EXPOSE 9999
 

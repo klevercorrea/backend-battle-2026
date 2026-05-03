@@ -26,18 +26,12 @@ x-api-common: &api-common
     - rinha-network
 
 services:
-  # ── Socket Permission Fix ──────────────────────────────────────────
-  # Runs briefly to ensure the shared volume is writable by the non-root API user (10001).
-  init-sockets:
-    image: busybox
-    volumes:
-      - rinha-sockets:/sockets
-    command: chown -R 10001:10001 /sockets
-
   # ── Load Balancer (HAProxy) ─────────────────────────────────────────
   haproxy:
     image: haproxy:3.3-alpine
     container_name: rinha-haproxy
+    security_opt:
+      - seccomp=unconfined
     restart: always
     volumes:
       - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
@@ -65,8 +59,6 @@ services:
     container_name: rinha-api1
     environment:
       - SOCKET_PATH=/sockets/api1.sock
-    depends_on:
-      - init-sockets
 
   # ── API Instance 2 ──────────────────────────────────────────────────
   api2:
@@ -74,8 +66,6 @@ services:
     container_name: rinha-api2
     environment:
       - SOCKET_PATH=/sockets/api2.sock
-    depends_on:
-      - init-sockets
 
 # ── Shared Storage ────────────────────────────────────────────────────
 volumes:
