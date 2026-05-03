@@ -46,18 +46,25 @@ const Router = struct {
 /// domain socket; otherwise falls back to TCP port 9999.
 pub fn run(io: Io, ctx: *const AppContext, socket_path: ?[]const u8) !void {
     var server: net.Server = if (socket_path) |path| s: {
-        // Clean up previous socket if it exists
-        std.posix.unlinkat(std.os.linux.AT.FDCWD, path, 0) catch |err| switch (err) {
-            error.FileNotFound => {},
-            else => return err,
-        };
+        // Clean up previous socket if it exists.
+        // We use the raw Linux syscall wrapper for maximum reliability in this Zig version.
+        var path_buf: [std.posix.PATH_MAX]u8 = undefined;
+        if (path.len < path_buf.len) {
+            @memcpy(path_buf[0..path.len], path);
+            path_buf[path.len] = 0;
+            const path_z: [*:0]const u8 = path_buf[0..path.len :0];
+            _ = std.os.linux.unlinkat(std.os.linux.AT.FDCWD, path_z, 0);
+        }
 
         const addr = try net.UnixAddress.init(path);
         log.info("Listening on Unix Domain Socket: {s}", .{path});
         const s = try addr.listen(io, .{});
 
         // Ensure the load balancer (HAProxy) can read/write the socket.
-        try std.posix.fchmodat(std.os.linux.AT.FDCWD, path, 0o666, 0);
+        if (path.len < path_buf.len) {
+            const path_z: [*:0]const u8 = path_buf[0..path.len :0];
+            _ = std.os.linux.chmod(path_z, 0o666);
+        }
 
         break :s s;
     } else s: {
