@@ -53,40 +53,46 @@ pub fn normalize(
 ) [Feature.count]f32 {
     var v: [Feature.count]f32 = undefined;
 
-    v[Feature.amount.i()] = clamp(@as(f32, @floatCast(payload.transaction.amount / constants.max_amount)));
-    v[Feature.installments.i()] = clamp(@as(f32, @floatCast(@as(f64, @floatFromInt(payload.transaction.installments)) / constants.max_installments)));
-    v[Feature.amount_vs_avg.i()] = clamp(@as(f32, @floatCast((payload.transaction.amount / payload.customer.avg_amount) / constants.amount_vs_avg_ratio)));
+    const amount_f64 = payload.transaction.amount;
+    v[Feature.amount.i()] = round4(clamp(@as(f32, @floatCast(amount_f64 / constants.max_amount))));
+    v[Feature.installments.i()] = round4(clamp(@as(f32, @floatCast(@as(f64, @floatFromInt(payload.transaction.installments)) / constants.max_installments))));
+    v[Feature.amount_vs_avg.i()] = round4(clamp(@as(f32, @floatCast((amount_f64 / payload.customer.avg_amount) / constants.amount_vs_avg_ratio))));
 
     const hour = parseHour(payload.transaction.requested_at);
-    v[Feature.hour_of_day.i()] = @as(f32, @floatFromInt(hour)) / 23.0;
+    v[Feature.hour_of_day.i()] = round4(@as(f32, @floatCast(@as(f64, @floatFromInt(hour)) / 23.0)));
 
     const dow = parseDayOfWeek(payload.transaction.requested_at);
-    v[Feature.day_of_week.i()] = @as(f32, @floatFromInt(dow)) / 6.0;
+    v[Feature.day_of_week.i()] = round4(@as(f32, @floatCast(@as(f64, @floatFromInt(dow)) / 6.0)));
 
     if (payload.last_transaction) |last| {
         const diff_seconds = diffTimestamps(payload.transaction.requested_at, last.timestamp);
-        v[Feature.minutes_since_last_tx.i()] = clamp(@as(f32, @floatCast(@as(f64, @floatFromInt(@divTrunc(diff_seconds, 60))) / constants.max_minutes)));
-        v[Feature.km_from_last_tx.i()] = clamp(@as(f32, @floatCast(last.km_from_current / constants.max_km)));
+        const mins = @as(f64, @floatFromInt(diff_seconds)) / 60.0;
+        v[Feature.minutes_since_last_tx.i()] = round4(clamp(@as(f32, @floatCast(mins / constants.max_minutes))));
+        v[Feature.km_from_last_tx.i()] = round4(clamp(@as(f32, @floatCast(last.km_from_current / constants.max_km))));
     } else {
-        // Bounding-Box Repair: map sentinel -1.0 to 0.5 (neutral/average)
-        // to avoid distance corruption in SIMD kernel.
-        v[Feature.minutes_since_last_tx.i()] = 0.5;
-        v[Feature.km_from_last_tx.i()] = 0.5;
+        // Official generator uses -1.0 as sentinel for missing last_transaction.
+        v[Feature.minutes_since_last_tx.i()] = -1.0;
+        v[Feature.km_from_last_tx.i()] = -1.0;
     }
 
-    v[Feature.km_from_home.i()] = clamp(@as(f32, @floatCast(payload.terminal.km_from_home / constants.max_km)));
-    v[Feature.tx_count_24h.i()] = clamp(@as(f32, @floatCast(@as(f64, @floatFromInt(payload.customer.tx_count_24h)) / constants.max_tx_count_24h)));
+    v[Feature.km_from_home.i()] = round4(clamp(@as(f32, @floatCast(payload.terminal.km_from_home / constants.max_km))));
+    v[Feature.tx_count_24h.i()] = round4(clamp(@as(f32, @floatCast(@as(f64, @floatFromInt(payload.customer.tx_count_24h)) / constants.max_tx_count_24h))));
     v[Feature.is_online.i()] = if (payload.terminal.is_online) 1.0 else 0.0;
     v[Feature.card_present.i()] = if (payload.terminal.card_present) 1.0 else 0.0;
 
     v[Feature.unknown_merchant.i()] = if (payload.customer.is_merchant_known) 0.0 else 1.0;
 
-    // Ensure mcc_risk is also clamped to [0, 1]
+    // Ensure mcc_risk is also clamped and rounded
     const risk = mcc_risk.get(payload.merchant.mcc) orelse 0.5;
-    v[Feature.mcc_risk.i()] = clamp(@as(f32, @floatCast(risk)));
-    v[Feature.merchant_avg_amount.i()] = clamp(@as(f32, @floatCast(payload.merchant.avg_amount / constants.max_merchant_avg_amount)));
+    v[Feature.mcc_risk.i()] = round4(clamp(@as(f32, @floatCast(risk))));
+    v[Feature.merchant_avg_amount.i()] = round4(clamp(@as(f32, @floatCast(payload.merchant.avg_amount / constants.max_merchant_avg_amount))));
 
     return v;
+}
+
+/// Round to 4 decimal places, matching the official C generator's `round4`.
+fn round4(v: f32) f32 {
+    return @round(v * 10000.0) / 10000.0;
 }
 
 /// Clamp to [0, 1]. Lowers to MINSS + MAXSS — branchless.

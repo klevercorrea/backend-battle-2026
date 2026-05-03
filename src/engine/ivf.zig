@@ -7,7 +7,7 @@ const std = @import("std");
 pub const vector_dim = 16;
 
 /// Number of IVF clusters (partitions).
-pub const k_clusters = 6;
+pub const k_clusters = 256;
 
 /// Number of nearest neighbors returned by search.
 pub const k_nearest = 5;
@@ -66,9 +66,10 @@ pub const KnnResult = struct {
 
 /// Performs a k-nearest neighbor search using the IVF index to skip unrelated clusters.
 pub fn searchIvf(query: *const [vector_dim]f32, dataset: SoADataset, index: IvfIndex) KnnResult {
-    // 1. Find the nearest centroid
-    var min_dist: f32 = std.math.inf(f32);
-    var best_k: usize = 0;
+    // 1. Find the top 14 nearest centroids
+    const n_probes = 14;
+    var best_ks: [n_probes]usize = undefined;
+    var best_dists: [n_probes]f32 = [_]f32{std.math.inf(f32)} ** n_probes;
 
     const q_vec: @Vector(vector_dim, f32) = query.*;
     for (0..k_clusters) |ki| {
@@ -76,45 +77,56 @@ pub fn searchIvf(query: *const [vector_dim]f32, dataset: SoADataset, index: IvfI
         const diff = q_vec - c_vec;
         const dist = @reduce(.Add, diff * diff);
 
-        if (dist < min_dist) {
-            min_dist = dist;
-            best_k = ki;
+        if (dist < best_dists[n_probes - 1]) {
+            var pos: usize = n_probes - 1;
+            while (pos > 0 and dist < best_dists[pos - 1]) : (pos -= 1) {
+                best_dists[pos] = best_dists[pos - 1];
+                best_ks[pos] = best_ks[pos - 1];
+            }
+            best_dists[pos] = dist;
+            best_ks[pos] = ki;
         }
     }
-
-    // 2. Perform KNN search only within the chosen cluster
-    const cluster_offset = index.offsets[best_k];
-    const cluster_len = index.lengths[best_k];
-    const cluster_padded_len = (cluster_len + 15) & ~@as(u32, 15);
 
     var result: KnnResult = .{
         .indices = [_]c_int{-1} ** k_nearest,
         .distances = [_]f32{1e30} ** k_nearest,
     };
 
-    const lane_count = 16;
-    var i: usize = cluster_offset;
-    const end = cluster_offset + cluster_padded_len;
+    // 2. Perform KNN search within the top clusters
+    for (best_ks) |ki| {
+        const cluster_offset = index.offsets[ki];
+        const cluster_len = index.lengths[ki];
+        const cluster_padded_len = (cluster_len + 15) & ~@as(u32, 15);
 
-    while (i < end) : (i += lane_count) {
-        var dist_vec: @Vector(lane_count, f32) = @splat(0.0);
+        const lane_count = 16;
+        var i: usize = cluster_offset;
+        const end = cluster_offset + cluster_padded_len;
 
-        inline for (0..vector_dim) |dim| {
-            const q: @Vector(lane_count, f32) = @splat(query[dim]);
-            const r: @Vector(lane_count, f32) = dataset.dims[dim][i..][0..lane_count].*;
-            const diff = q - r;
-            dist_vec += diff * diff;
+        while (i < end) : (i += lane_count) {
+            var dist_vec: @Vector(lane_count, f32) = @splat(0.0);
 
-            if (dim % 4 == 3) {
-                if (@reduce(.Min, dist_vec) > result.distances[k_nearest - 1]) break;
+            inline for (0..vector_dim) |dim| {
+                const q: @Vector(lane_count, f32) = @splat(query[dim]);
+                const r: @Vector(lane_count, f32) = dataset.dims[dim][i..][0..lane_count].*;
+                const diff = q - r;
+                dist_vec += diff * diff;
+
+                // Ultra-fast AVX2 Early Exit using vector comparisons
+                if (dim == 7 or dim == 11) {
+                    const worst_splat: @Vector(lane_count, f32) = @splat(result.distances[k_nearest - 1]);
+                    if (!@reduce(.Or, dist_vec < worst_splat)) break;
+                }
             }
-        }
 
-        // Branchless update of top-k
-        inline for (0..lane_count) |lane| {
-            const d = dist_vec[lane];
-            if (d < result.distances[k_nearest - 1]) {
-                insertSorted(&result, @intCast(i + lane), d);
+            const worst_splat: @Vector(lane_count, f32) = @splat(result.distances[k_nearest - 1]);
+            if (@reduce(.Or, dist_vec < worst_splat)) {
+                inline for (0..lane_count) |lane| {
+                    const d = dist_vec[lane];
+                    if (d < result.distances[k_nearest - 1]) {
+                        insertSorted(&result, @intCast(i + lane), d);
+                    }
+                }
             }
         }
     }

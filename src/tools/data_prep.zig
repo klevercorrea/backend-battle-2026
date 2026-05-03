@@ -159,7 +159,7 @@ pub fn writeClusteredReferences(allocator: std.mem.Allocator, references: []cons
         .offsets = undefined,
         .lengths = undefined,
     };
-    for (0..6) |i| {
+    for (0..centroids.len) |i| {
         index.centroids[i] = centroids[i];
         index.offsets[i] = 0;
         index.lengths[i] = 0;
@@ -188,10 +188,10 @@ pub fn writeClusteredReferences(allocator: std.mem.Allocator, references: []cons
 
     for (0..16) |dim| {
         var written_in_dim: u32 = 0;
-        for (0..6) |ki| {
+        for (0..centroids.len) |ki| {
             const cluster_start = index.offsets[ki];
             const cluster_len = index.lengths[ki];
-            const cluster_padded_len = if (ki < 5) index.offsets[ki + 1] - cluster_start else (total_vectors_padded - cluster_start);
+            const cluster_padded_len = if (ki < centroids.len - 1) index.offsets[ki + 1] - cluster_start else (total_vectors_padded - cluster_start);
 
             // Find the slice of clustered references for this group
             var refs_in_cluster: []const ClusteredReference = &.{};
@@ -226,10 +226,10 @@ pub fn writeClusteredReferences(allocator: std.mem.Allocator, references: []cons
     var labels_writer = labels_file.writer(io, &labels_buf);
 
     var written_labels: u32 = 0;
-    for (0..6) |ki| {
+    for (0..centroids.len) |ki| {
         const cluster_start = index.offsets[ki];
         const cluster_len = index.lengths[ki];
-        const cluster_padded_len = if (ki < 5) index.offsets[ki + 1] - cluster_start else (total_vectors_padded - cluster_start);
+        const cluster_padded_len = if (ki < centroids.len - 1) index.offsets[ki + 1] - cluster_start else (total_vectors_padded - cluster_start);
 
         var start_idx: usize = 0;
         for (clustered, 0..) |c, idx| {

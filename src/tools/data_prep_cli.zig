@@ -3,19 +3,20 @@
 
 const std = @import("std");
 const data_prep = @import("data_prep.zig");
+const engine = @import("engine");
 
 pub fn main(init: std.process.Init) !void {
     const allocator = init.gpa;
     const io = init.io;
 
-    const references_json = try std.Io.Dir.cwd().readFileAlloc(io, "resources/example-references.json", allocator, .unlimited);
+    const references_json = try std.Io.Dir.cwd().readFileAlloc(io, "resources/references.json", allocator, .unlimited);
     defer allocator.free(references_json);
 
     var parsed = try data_prep.parseReferences(allocator, references_json);
     defer parsed.deinit();
 
-    std.debug.print("Clustering {d} references into 6 groups...\n", .{parsed.value.len});
-    const cluster_results = try data_prep.clusterReferences(allocator, parsed.value, 6, 50);
+    std.debug.print("Clustering {d} references into {d} groups...\n", .{ parsed.value.len, engine.k_clusters });
+    const cluster_results = try data_prep.clusterReferences(allocator, parsed.value, engine.k_clusters, 50);
     defer allocator.free(cluster_results.centroids);
     defer allocator.free(cluster_results.assignments);
 
