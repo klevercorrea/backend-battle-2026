@@ -47,7 +47,7 @@ const Router = struct {
 pub fn run(io: Io, ctx: *const AppContext, socket_path: ?[]const u8) !void {
     var server: net.Server = if (socket_path) |path| s: {
         // Clean up previous socket if it exists
-        std.posix.unlink(path) catch |err| switch (err) {
+        std.posix.unlinkat(std.os.linux.AT.FDCWD, path, 0) catch |err| switch (err) {
             error.FileNotFound => {},
             else => return err,
         };
