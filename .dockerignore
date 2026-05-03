@@ -1,0 +1,42 @@
+# ── Source Control ────────────────────────────────────────────────────
+# The .git directory is only needed for versioning history and metadata.
+# Excluding it significantly reduces the Docker build context size.
+.git
+.gitignore
+
+# ── Build Artifacts ──────────────────────────────────────────────────
+# Local build caches are platform-specific (Host OS vs Container OS).
+# The container must compile its own binaries to ensure compatibility.
+.zig-cache
+zig-out
+zig-pkg
+
+# ── Runtime Data ─────────────────────────────────────────────────────
+# These directories contain high-volume binary data or static resources.
+# While they can be mounted as volumes, we include them in the image
+# to ensure it's functional out-of-the-box as requested.
+
+# ── Documentation & Project Management ───────────────────────────────
+# Planning documents and implementation tracks are essential for
+# development but serve no purpose in the production container.
+docs
+README.md
+
+# ── Test & Benchmark ─────────────────────────────────────────────────
+# Test logic and benchmark scripts are part of the CI/CD and development
+# workflow, not the production server runtime.
+tests
+
+# ── Configuration & IDE ──────────────────────────────────────────────
+# Tooling configurations (formatters, linters, IDE settings) are meant
+# for the developer's workspace, not the server environment.
+.prettierrc
+.prettierignore
+.vscode
+.idea
+
+# ── Temporary Files ──────────────────────────────────────────────────
+# Ephemeral files like logs and temp buffers should never be baked into
+# an immutable container image.
+*.log
+*.tmp
