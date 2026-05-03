@@ -5,10 +5,16 @@ Zig 0.16.0 fraud-detection server for
 
 ## Core Principles
 
-- **Zig 0.16.0**: Unified I/O layer using `std.Io` with native **`io_uring`** support and `SQPOLL` for zero-syscall networking.
-- **Native SIMD Engine**: Core vector search engine (`searchKnn`) implemented with Zig `@Vector` and **Threshold Pruning** for maximum throughput.
-- **Zero-Allocation**: Custom JSON scanner and lock-free arena allocation for minimalist request handling.
-- **Shared Memory**: Uses `mmap` to load the dataset and labels into memory for high-speed access. The 14-dimensional business vectors are intentionally padded to **16D SoA (Structure of Arrays)** to ensure perfect memory alignment for AVX2/SIMD operations.
+- **Zig 0.16.0**: Unified I/O layer using `std.Io` with native **`io_uring`**
+  support and `SQPOLL` for zero-syscall networking.
+- **Native SIMD Engine**: Core vector search engine (`searchKnn`) implemented
+  with Zig `@Vector` and **Threshold Pruning** for maximum throughput.
+- **Zero-Allocation**: Custom JSON scanner and lock-free arena allocation for
+  minimalist request handling.
+- **Shared Memory**: Uses `mmap` to load the dataset and labels into memory for
+  high-speed access. The 14-dimensional business vectors are intentionally
+  padded to **16D SoA (Structure of Arrays)** to ensure perfect memory alignment
+  for AVX2/SIMD operations.
 
 ## Request Flow
 

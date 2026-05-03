@@ -13,7 +13,8 @@ decide on transaction approval based on a reference dataset.
 
 ## Architecture & Documentation
 
-For a detailed breakdown of the request flow, module dependencies, and domain boundaries, please see the [Architecture Documentation](docs/architecture.md).
+For a detailed breakdown of the request flow, module dependencies, and domain
+boundaries, please see the [Architecture Documentation](docs/architecture.md).
 
 ## Prerequisites
 
@@ -172,4 +173,5 @@ curl -X POST http://localhost:9999/fraud-score \
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
+for details.
