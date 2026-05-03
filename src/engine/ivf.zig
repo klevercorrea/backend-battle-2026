@@ -99,7 +99,7 @@ pub fn searchIvf(query: *const [vector_dim]f32, dataset: SoADataset, index: IvfI
         const cluster_len = index.lengths[ki];
         const cluster_padded_len = (cluster_len + 15) & ~@as(u32, 15);
 
-        const lane_count = 16;
+        const lane_count = 8;
         var i: usize = cluster_offset;
         const end = cluster_offset + cluster_padded_len;
 

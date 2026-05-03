@@ -27,7 +27,7 @@ pub fn main(init: std.process.Init) !void {
         cluster_results.assignments,
         "data/references.bin",
         "data/labels.bin",
-        "resources/index.bin",
+        "data/index.bin",
     );
 
     std.debug.print("Successfully wrote clustered references and IVF index.\n", .{});
