@@ -26,7 +26,7 @@ pub fn main(init: std.process.Init) !void {
         null,
         stat.size,
         .{ .READ = true },
-        .{ .TYPE = .PRIVATE },
+        .{ .TYPE = .SHARED },
         file.handle,
         0,
     );
@@ -39,7 +39,7 @@ pub fn main(init: std.process.Init) !void {
         null,
         lstat.size,
         .{ .READ = true },
-        .{ .TYPE = .PRIVATE },
+        .{ .TYPE = .SHARED },
         lfile.handle,
         0,
     );
