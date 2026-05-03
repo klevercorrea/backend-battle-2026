@@ -64,7 +64,7 @@ pub fn main(init: std.process.Init) !void {
 
     // Load IVF Index
     var index_buf: [@sizeOf(engine.IvfIndex)]u8 align(@alignOf(engine.IvfIndex)) = undefined;
-    const index_file = try std.Io.Dir.cwd().openFile(io, "resources/index.bin", .{});
+    const index_file = try std.Io.Dir.cwd().openFile(io, "data/index.bin", .{});
     defer index_file.close(io);
     _ = try index_file.readPositionalAll(io, &index_buf, 0);
     const index: *const engine.IvfIndex = @ptrCast(@alignCast(&index_buf));
