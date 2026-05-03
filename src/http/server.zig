@@ -46,19 +46,19 @@ const Router = struct {
 pub fn run(io: Io, ctx: *const AppContext, socket_path: ?[]const u8) !void {
     var server: net.Server = if (socket_path) |path| s: {
         // Clean up previous socket if it exists
-        std.Io.Dir.cwd().deleteFile(io, path) catch {};
+        std.fs.cwd().deleteFile(path) catch {};
         const addr = try net.UnixAddress.init(path);
         log.info("Listening on Unix Domain Socket: {s}", .{path});
         const s = try addr.listen(io, .{});
 
         // Ensure the load balancer (HAProxy) can read/write the socket.
-        // On Linux, we use the raw chmod syscall for special files like sockets.
-        var path_buf: [256]u8 = undefined;
-        if (path.len < 255) {
-            @memcpy(path_buf[0..path.len], path);
-            path_buf[path.len] = 0;
-            _ = std.os.linux.chmod(path_buf[0..path.len :0].ptr, 0o666);
-        }
+        // We use the absolute path for chmod to ensure it works regardless of CWD.
+        var path_z = try std.process.Child.argsAlloc(std.heap.page_allocator, &[_][]const u8{path});
+        defer std.process.Child.argsFree(std.heap.page_allocator, path_z);
+
+        // Use standard Zig posix wrapper for chmod (0o666)
+        try std.posix.chmod(path, 0o666);
+
         break :s s;
     } else s: {
         const addr = try net.IpAddress.parse("0.0.0.0", 9999);
