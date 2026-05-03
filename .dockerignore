@@ -1,5 +1,4 @@
 # ── Source Control ────────────────────────────────────────────────────
-# The .git directory is only needed for versioning history and metadata.
 # Excluding it significantly reduces the Docker build context size.
 .git
 .gitignore
@@ -12,11 +11,7 @@ zig-out
 zig-pkg
 
 # ── Runtime Data ─────────────────────────────────────────────────────
-# These directories contain high-volume binary data or static resources.
 # While they can be mounted as volumes, we exclude them from the build context
-# to prevent uploading gigabytes of data to the Docker daemon on every build.
-data
-resources
 # Planning documents and implementation tracks are essential for
 # development but serve no purpose in the production container.
 docs

@@ -41,6 +41,8 @@ COPY --from=builder /etc/passwd /etc/passwd
 COPY --from=builder /etc/group /etc/group
 
 COPY --from=builder /app/zig-out/bin/rinha /app/rinha
+COPY data/ /app/data/
+COPY resources/ /app/resources/
 
 EXPOSE 9999
 
