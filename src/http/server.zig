@@ -47,13 +47,17 @@ const Router = struct {
 pub fn run(io: Io, ctx: *const AppContext, socket_path: ?[]const u8) !void {
     var server: net.Server = if (socket_path) |path| s: {
         // Clean up previous socket if it exists
-        std.fs.cwd().deleteFile(path) catch {};
+        std.posix.unlink(path) catch |err| switch (err) {
+            error.FileNotFound => {},
+            else => return err,
+        };
+
         const addr = try net.UnixAddress.init(path);
         log.info("Listening on Unix Domain Socket: {s}", .{path});
         const s = try addr.listen(io, .{});
 
         // Ensure the load balancer (HAProxy) can read/write the socket.
-        try std.posix.chmod(path, 0o666);
+        try std.posix.fchmodat(std.os.linux.AT.FDCWD, path, 0o666, 0);
 
         break :s s;
     } else s: {
