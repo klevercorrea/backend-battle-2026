@@ -1,0 +1,10 @@
+{
+    "participants": ["Klever Correa"],
+    "social": [
+        "https://github.com/klevercorrea",
+        "https://www.linkedin.com/in/klevercsilveira"
+    ],
+    "source-code-repo": "https://github.com/klevercorrea/backend-battle-2026",
+    "stack": ["zig", "haproxy"],
+    "open_to_work": true
+}

@@ -1,0 +1,88 @@
+# ── API Common Configuration ──────────────────────────────────────────
+x-api-common: &api-common
+  build: .
+  # seccomp=unconfined is used to allow high-performance syscalls like io_uring, 
+  # which are frequently utilized in Zig for efficient asynchronous I/O.
+  security_opt:
+    - seccomp=unconfined
+  # High nofile limits are essential for handling thousands of concurrent connections.
+  ulimits:
+    nofile:
+      soft: 65535
+      hard: 65535
+  volumes:
+    - ./data:/app/data:ro
+    - ./resources:/app/resources:ro
+    # Shared volume for Unix Domain Sockets (IPC). Bypasses TCP stack overhead.
+    - rinha-sockets:/sockets
+  deploy:
+    resources:
+      limits:
+        # 0.40 CPU per API allows 0.20 for HAProxy,
+        # preventing TCP/IPC bottlenecking at the router.
+        cpus: "0.40"
+        memory: "150MB"
+  networks:
+    - rinha-network
+
+services:
+  # ── Socket Permission Fix ──────────────────────────────────────────
+  # Runs briefly to ensure the shared volume is writable by the non-root API user (10001).
+  init-sockets:
+    image: busybox
+    volumes:
+      - rinha-sockets:/sockets
+    command: chown -R 10001:10001 /sockets
+
+  # ── Load Balancer (HAProxy) ─────────────────────────────────────────
+  haproxy:
+    image: haproxy:3.3-alpine
+    container_name: rinha-haproxy
+    restart: always
+    volumes:
+      - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+      - rinha-sockets:/sockets
+    ports:
+      # Port 9999 is the mandatory entry point for the competition.
+      - "9999:9999"
+    depends_on:
+      api1:
+        condition: service_started
+      api2:
+        condition: service_started
+    deploy:
+      resources:
+        limits:
+          # 0.20 CPU prevents HAProxy from becoming the bottleneck for the backend.
+          cpus: "0.20"
+          memory: "50MB"
+    networks:
+      - rinha-network
+
+  # ── API Instance 1 ──────────────────────────────────────────────────
+  api1:
+    <<: *api-common
+    container_name: rinha-api1
+    environment:
+      - SOCKET_PATH=/sockets/api1.sock
+    depends_on:
+      - init-sockets
+
+  # ── API Instance 2 ──────────────────────────────────────────────────
+  api2:
+    <<: *api-common
+    container_name: rinha-api2
+    environment:
+      - SOCKET_PATH=/sockets/api2.sock
+    depends_on:
+      - init-sockets
+
+# ── Shared Storage ────────────────────────────────────────────────────
+volumes:
+  rinha-sockets:
+
+# ── Networking ────────────────────────────────────────────────────────
+networks:
+  # Standard bridge network as mandated by the rules (Host networking is strictly forbidden).
+  rinha-network:
+    driver: bridge
