@@ -47,7 +47,7 @@ const Router = struct {
 pub fn run(io: Io, ctx: *const AppContext, socket_path: ?[]const u8) !void {
     var server: net.Server = if (socket_path) |path| s: {
         // Clean up previous socket if it exists
-        fs.cwd().deleteFile(path) catch {};
+        std.fs.cwd().deleteFile(path) catch {};
         const addr = try net.UnixAddress.init(path);
         log.info("Listening on Unix Domain Socket: {s}", .{path});
         const s = try addr.listen(io, .{});
