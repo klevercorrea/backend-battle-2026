@@ -10,6 +10,9 @@ zig-pkg/
 # that lack any formattable text content.
 data/
 resources/*.bin
+resources/*.json
+tests/*.json
+
 
 # ── Build Manifest ───────────────────────────────────────────────────
 # build.zig.zon uses Zig's struct literal syntax. Formatting it with
