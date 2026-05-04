@@ -1,25 +1,18 @@
 # ── API Common Configuration ──────────────────────────────────────────
 x-api-common: &api-common
-  build: .
-  # seccomp=unconfined is used to allow high-performance syscalls like io_uring, 
-  # which are frequently utilized in Zig for efficient asynchronous I/O.
+  image: klevercorrea/rinha-backend-zig:latest
   security_opt:
     - seccomp=unconfined
-  # High nofile limits are essential for handling thousands of concurrent connections.
   ulimits:
     nofile:
       soft: 65535
       hard: 65535
   volumes:
-    - ./data:/app/data:ro
-    - ./resources:/app/resources:ro
-    # Shared volume for Unix Domain Sockets (IPC). Bypasses TCP stack overhead.
+    # Shared volume for Unix Domain Sockets (IPC).
     - rinha-sockets:/sockets
   deploy:
     resources:
       limits:
-        # 0.40 CPU per API allows 0.20 for HAProxy,
-        # preventing TCP/IPC bottlenecking at the router.
         cpus: "0.40"
         memory: "150MB"
   networks:
@@ -37,7 +30,6 @@ services:
       - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
       - rinha-sockets:/sockets
     ports:
-      # Port 9999 is the mandatory entry point for the competition.
       - "9999:9999"
     depends_on:
       api1:
@@ -47,7 +39,6 @@ services:
     deploy:
       resources:
         limits:
-          # 0.20 CPU prevents HAProxy from becoming the bottleneck for the backend.
           cpus: "0.20"
           memory: "50MB"
     networks:
@@ -73,6 +64,5 @@ volumes:
 
 # ── Networking ────────────────────────────────────────────────────────
 networks:
-  # Standard bridge network as mandated by the rules (Host networking is strictly forbidden).
   rinha-network:
     driver: bridge
