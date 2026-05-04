@@ -71,6 +71,10 @@ pub fn main(init: std.process.Init) !void {
 
     const n_padded = stat.size / (engine.vector_dim * @sizeOf(f32));
 
+    // Pre-warm memory to populate TLB and ensure all pages are resident.
+    prewarm(mmap_ptr[0..stat.size]);
+    prewarm(lmmap_ptr[0..lstat.size]);
+
     const app: server.AppContext = .{
         .dataset = engine.SoADataset.init(@ptrCast(@alignCast(mmap_ptr[0..stat.size])), n_padded),
         .index = index.*,
@@ -81,4 +85,13 @@ pub fn main(init: std.process.Init) !void {
 
     const socket_path = init.environ_map.get("SOCKET_PATH");
     try server.run(io, &app, socket_path);
+}
+
+/// Walk one byte per 4 KiB page to ensure all page-table entries land in the CPU's TLB.
+fn prewarm(buf: []const u8) void {
+    const PAGE: usize = 4096;
+    var i: usize = 0;
+    while (i < buf.len) : (i += PAGE) {
+        _ = buf[i];
+    }
 }

@@ -40,7 +40,6 @@ pub fn handleFraudScore(io: Io, stream: net.Stream, ctx: *const AppContext, req:
         ctx.index,
         ctx.labels,
         &ctx.norm_constants,
-        &ctx.mcc_risk,
     );
 
     var w_buf: [512]u8 = undefined;

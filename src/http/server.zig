@@ -58,7 +58,7 @@ pub fn run(io: Io, ctx: *const AppContext, socket_path: ?[]const u8) !void {
 
         const addr = try net.UnixAddress.init(path);
         log.info("Listening on Unix Domain Socket: {s}", .{path});
-        const s = try addr.listen(io, .{});
+        const s = try addr.listen(io, .{ .kernel_backlog = 8192 });
 
         // Ensure the load balancer (HAProxy) can read/write the socket.
         if (path.len < path_buf.len) {

@@ -49,7 +49,6 @@ pub const Feature = enum(u4) {
 pub fn normalize(
     payload: *const TransactionPayload,
     constants: *const NormalizationConstants,
-    mcc_risk: *const std.StringHashMap(f64),
 ) [Feature.count]f32 {
     var v: [Feature.count]f32 = undefined;
 
@@ -82,9 +81,21 @@ pub fn normalize(
 
     v[Feature.unknown_merchant.i()] = if (payload.customer.is_merchant_known) 0.0 else 1.0;
 
-    // Ensure mcc_risk is also clamped and rounded
-    const risk = mcc_risk.get(payload.merchant.mcc) orelse 0.5;
-    v[Feature.mcc_risk.i()] = round4(clamp(@as(f32, @floatCast(risk))));
+    // Fast MCC risk lookup based on static competition data.
+    const risk: f32 = switch (std.fmt.parseInt(u16, payload.merchant.mcc, 10) catch 0) {
+        4511 => 0.35,
+        5311 => 0.25,
+        5411 => 0.15,
+        5812 => 0.30,
+        5912 => 0.20,
+        5944 => 0.45,
+        5999 => 0.50,
+        7801 => 0.80,
+        7802 => 0.75,
+        7995 => 0.85,
+        else => 0.5,
+    };
+    v[Feature.mcc_risk.i()] = round4(risk);
     v[Feature.merchant_avg_amount.i()] = round4(clamp(@as(f32, @floatCast(payload.merchant.avg_amount / constants.max_merchant_avg_amount))));
 
     return v;

@@ -15,10 +15,9 @@ pub fn scoreFraud(
     index: ivf.IvfIndex,
     labels: [*]const u8,
     norm_constants: *const core.norm.NormalizationConstants,
-    mcc_risk: *const std.StringHashMap(f64),
 ) usize {
     // 1. Normalize payload → 14D feature vector
-    const vector14 = core.norm.normalize(payload, norm_constants, mcc_risk);
+    const vector14 = core.norm.normalize(payload, norm_constants);
 
     // 2. Pad to 16D for SIMD alignment
     var query: [ivf.vector_dim]f32 = [_]f32{0} ** ivf.vector_dim;
